@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from typing import List
 from Scraper import Apartment
+from Scraper import Building
+from ApartmentFilter import Filter
 import Historizer
 import Scraper
+import ApartmentFilter
 import os
 
 
@@ -11,9 +14,27 @@ class ApartmentChanged:
     apt_before : Apartment
     apt_now : Apartment
 
+    def __str__(self):
+        price_diff = int(self.apt_now.price - self.apt_before.price)
+        sign = '+' if price_diff > 0 else ''
+        bath = int(self.apt_now.bath) if self.apt_now.bath == int(self.apt_now.bath) else self.apt_now.bath
+        return f'{self.apt_now.number} @ ${int(self.apt_now.price)} ({sign}{price_diff}$) - {self.apt_now.bed} bed {bath} bath - {self.apt_now.sq_footage} sqft - {self.apt_now.avail_date:%B %d}'
+
+@dataclass
+class ApartmentUpdates:
+    added : List[Apartment]
+    removed : List[Apartment]
+    changed : List[ApartmentChanged]
+
+
+filters_by_building = {
+    Scraper.avalon_buildings[0].id : Filter(3500, 4800, 750),
+    Scraper.avalon_buildings[1].id : Filter(3500, 5500, 750)
+}
+
 def compare(last_apts, new_apts):
     if not last_apts:
-        return True
+        return None
     last_apts_dico = apts_to_dict(last_apts)
     new_apts_dico = apts_to_dict(new_apts)
 
@@ -34,6 +55,8 @@ def compare(last_apts, new_apts):
         if not id in last_apts_dico:
             added.append(new_apts_dico[id])
 
+    return ApartmentUpdates(added, removed, changed)
+
 
 def apts_to_dict(apts : List[Apartment]):
     apts_dico = dict()
@@ -41,9 +64,37 @@ def apts_to_dict(apts : List[Apartment]):
         apts_dico[apt.id] = apt
     return apts_dico
 
+def get_last_snapshot(building : Building):
+    histos = list(Historizer.load_building(building))
+    if histos:
+        return histos[-1]
+
+def print_changes(last_apts, new_apts, filter):
+    updates = compare(last_apts, new_apts)
+    if updates:
+        if updates.added:
+            print("New Apartment(s) :")
+            for a in ApartmentFilter.filter_apartments(updates.added, filter):
+                print(f"   {a}")
+        if updates.removed:
+            print("Removed Apartment(s) :")
+            for a in ApartmentFilter.filter_apartments(updates.removed, filter):
+                print(f"   {a}")
+        if updates.changed:
+            print("Updated Apartment(s) :")
+            for aa in updates.changed:
+                if ApartmentFilter.apt_wanted(aa.apt_before, filter) or ApartmentFilter.apt_wanted(aa.apt_now, filter) :
+                    print(f"   {aa}")
+
+def print_building_changes(building : Building, filter : Filter):
+    apts_now = Scraper.get_apartments(building)  # no filter on api because we prefer filtering later (to compare with before)
+    last_histo = get_last_snapshot(building)
+    if last_histo:
+        apts_before = last_histo.apartments
+        print_changes(apts_before, apts_now, filter)
+
 
 if __name__ == '__main__':
-    histo_file = os.path.dirname(os.path.realpath(__file__)) + "/histo_apts.txt"
-    apts = Scraper.get_apartments(Scraper.json_url_dobro)
-
-    apts_before = Historizer.load(histo_file)
+    for b in Scraper.avalon_buildings:
+        filter = filters_by_building[b.id]
+        print_building_changes(b, filter)

@@ -16,18 +16,32 @@ class Apartment:
     bed : int
     bath : float
 
+    def __str__(self):
+        bath = int(self.bath) if self.bath == int(self.bath) else self.bath
+        return f'{self.number} @ {int(self.price)} - {self.bed} bed {bath} bath - {self.sq_footage} sqft - {self.avail_date:%B %d}'
 
 
-dobro_code = 'NY037'
-willoughby_code = 'NY039'
-min_price = 3000
-max_price = 10000
-json_url = 'https://api.avalonbay.com/json/reply/ApartmentSearch?communityCode='
-price_filter = f'&min={min_price}&max={max_price}'
-json_url_dobro = f'{json_url}{dobro_code}{price_filter}'
-json_url_willoughby = f'{json_url}{willoughby_code}{price_filter}'
+@dataclass
+class Building:
+    id : str
+    name : str
 
-def get_apartments(json_url):
+
+avalon_buildings = [
+    Building('NY037', 'dobro'),
+    Building('NY039', 'willoughby')
+]
+
+
+def get_api_url(building : Building, min_price = 0, max_price = 0):
+    json_base_url = 'https://api.avalonbay.com/json/reply/ApartmentSearch?communityCode='
+    price_filter_min = f'&min={min_price}' if min_price else ''
+    price_filter_max = f'&max={max_price}' if max_price else ''
+    return f'{json_base_url}{building.id}{price_filter_min}{price_filter_max}'
+
+
+def get_apartments(building : Building, min_price = 0, max_price = 0):
+    json_url = get_api_url(building, min_price, max_price)
     r = requests.get(json_url)
     parsed_json = json.loads(r.content.decode('utf-8'))
     results = parsed_json['results']
@@ -47,14 +61,14 @@ def get_apartments(json_url):
                                       apt['beds'],
                                       apt['baths'])
 
-def print_apts(url):
+def print_apts(building  : Building):
+    url = get_api_url(building)
     print(url)
-    for apt in get_apartments(url):
+    for apt in sorted(get_apartments(building), key=lambda a:a.price):
         print(apt)
-
-
+    print()
 
 if __name__ == '__main__':
-    print_apts(json_url_dobro)
-    print_apts(json_url_willoughby)
+    for b in avalon_buildings:
+        print_apts(b)
 

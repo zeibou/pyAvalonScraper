@@ -6,6 +6,7 @@ import pprint
 import os
 import Scraper
 from Scraper import Apartment
+from Scraper import Building
 
 @dataclass_json
 @dataclass
@@ -14,24 +15,38 @@ class HistoEntry:
     apartments : List[Apartment]
 
 
-def save(histo_file, apartments, date):
+def save_file(histo_file, apartments, date):
     histo = HistoEntry(date, list(apartments))
     with open(histo_file, 'a') as file:
         file.write(histo.to_json() + "\n")
 
 
-def load(histo_file):
+def load_file(histo_file):
     with open(histo_file, 'r') as file:
         for line in file.readlines():
-            histo = HistoEntry.from_json(line)
-            pprint.pprint(histo)
+            yield HistoEntry.from_json(line)
+
+
+def histo_file(building : Building, directory = None):
+    histo_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'histos') if not directory else directory
+    return os.path.join(histo_directory, f'{building.id}.txt')
+
+
+def save_all(directory = None):
+    now = datetime.now()
+    for building in Scraper.avalon_buildings:
+        file = histo_file(building, directory)
+        apartments = Scraper.get_apartments(building)
+        save_file(file, apartments, now)
+
+
+def load_building(building : Building, directory = None):
+    file = histo_file(building, directory)
+    return load_file(file)
 
 
 if __name__ == '__main__':
-    dobro_file = os.path.dirname(os.path.realpath(__file__)) + "/dobro_apts.txt"
-    willoughby_file = os.path.dirname(os.path.realpath(__file__)) + "/willoughby_apts.txt"
-    print(dobro_file)
-    #os.remove(histo_file)
-    save(dobro_file, Scraper.get_apartments(Scraper.json_url_dobro), datetime.now())
-    save(willoughby_file, Scraper.get_apartments(Scraper.json_url_willoughby), datetime.now())
-    load(dobro_file)
+    test_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'histos_test')
+    save_all(test_folder)
+    for b in Scraper.avalon_buildings:
+        pprint.pprint(list(load_building(b, test_folder)))
