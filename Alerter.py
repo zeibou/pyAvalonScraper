@@ -3,10 +3,12 @@ from typing import List
 from Scraper import Apartment
 from Scraper import Building
 from ApartmentFilter import Filter
+from Historizer import HistoEntry
 import Historizer
 import Scraper
 import ApartmentFilter
-import os
+import datetime
+import time
 
 
 @dataclass
@@ -26,9 +28,15 @@ class ApartmentUpdates:
     removed : List[Apartment]
     changed : List[ApartmentChanged]
 
+@dataclass
+class UpdateLog:
+    date_before : datetime
+    date_after : datetime
+    updates : ApartmentUpdates
+
 
 filters_by_building = {
-    Scraper.avalon_buildings[0].id : Filter(3500, 4800, 750),
+    Scraper.avalon_buildings[0].id : Filter(3500, 6000, 750),
     Scraper.avalon_buildings[1].id : Filter(3500, 5500, 750)
 }
 
@@ -86,6 +94,57 @@ def print_changes(last_apts, new_apts, filter):
                 if ApartmentFilter.apt_wanted(aa.apt_before, filter) or ApartmentFilter.apt_wanted(aa.apt_now, filter) :
                     print(f"   {aa}")
 
+
+def yield_changes(last_apts, new_apts, filter):
+    updates = compare(last_apts, new_apts)
+    if updates:
+        if updates.added:
+            yield "New Apartment(s) :"
+            for a in ApartmentFilter.filter_apartments(updates.added, filter):
+                yield f"   {a}"
+        if updates.removed:
+            yield "Removed Apartment(s) :"
+            for a in ApartmentFilter.filter_apartments(updates.removed, filter):
+                yield f"   {a}"
+        if updates.changed:
+            yield "Updated Apartment(s) :"
+            for aa in updates.changed:
+                if ApartmentFilter.apt_wanted(aa.apt_before, filter) or ApartmentFilter.apt_wanted(aa.apt_now, filter) :
+                    yield f"   {aa}"
+
+
+def get_update_logs(building : Building, filter : Filter):
+    apts_now = Scraper.get_apartments(building)
+    histos = list(Historizer.load_building(building))
+    histos.append(HistoEntry(datetime.datetime.now(), apts_now))
+    for i in range(1, len(histos)):
+        yield UpdateLog(histos[i-1].date, histos[i].date, compare(histos[i-1].apartments, histos[i].apartments))
+
+
+def check_for_changes(historize = False, sendAlerts = False):
+    dico = dict()
+    now = datetime.datetime.now()
+    for b in Scraper.avalon_buildings:
+        new_snap = Scraper.get_apartments(b)
+        last_snap = get_last_snapshot(b)
+        updates = compare(last_snap, new_snap)
+        if updates and (updates.removed or updates.added or updates.changed):
+            dico[b] = updates
+            if historize:
+                Historizer.save_building(b, new_snap, now)
+    if sendAlerts and dico:
+        send_alerts(dico)
+
+
+def send_alerts(updates):
+    pass
+
+def continuous_task(sleep_time = 60):
+    while True:
+        check_for_changes(True, True)
+        time.sleep(sleep_time)
+
+
 def print_building_changes(building : Building, filter : Filter):
     apts_now = Scraper.get_apartments(building)  # no filter on api because we prefer filtering later (to compare with before)
     last_histo = get_last_snapshot(building)
@@ -94,7 +153,17 @@ def print_building_changes(building : Building, filter : Filter):
         print_changes(apts_before, apts_now, filter)
 
 
+def yield_building_changes(building : Building, filter : Filter):
+    apts_now = Scraper.get_apartments(building)  # no filter on api because we prefer filtering later (to compare with before)
+    last_histo = get_last_snapshot(building)
+    if last_histo:
+        apts_before = last_histo.apartments
+        return yield_changes(apts_before, apts_now, filter)
+
+
 if __name__ == '__main__':
-    for b in Scraper.avalon_buildings:
-        filter = filters_by_building[b.id]
-        print_building_changes(b, filter)
+    continuous_task()
+    #for b in Scraper.avalon_buildings:
+     #   #print_update_logs(b)
+     #   filter = filters_by_building[b.id]
+     #   print_building_changes(b, filter)

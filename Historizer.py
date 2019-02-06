@@ -35,9 +35,13 @@ def histo_file(building : Building, directory = None):
 def save_all(directory = None):
     now = datetime.now()
     for building in Scraper.avalon_buildings:
-        file = histo_file(building, directory)
         apartments = Scraper.get_apartments(building)
-        save_file(file, apartments, now)
+        save_building(building, apartments, now, directory)
+
+
+def save_building(building: Building, apartments, now, directory = None):
+    file = histo_file(building, directory)
+    save_file(file, apartments, now)
 
 
 def load_building(building : Building, directory = None):
