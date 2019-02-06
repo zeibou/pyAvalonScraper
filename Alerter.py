@@ -127,11 +127,14 @@ def check_for_changes(historize = False, sendAlerts = False):
     for b in Scraper.avalon_buildings:
         new_snap = Scraper.get_apartments(b)
         last_snap = get_last_snapshot(b)
-        updates = compare(last_snap, new_snap)
-        if updates and (updates.removed or updates.added or updates.changed):
-            dico[b] = updates
-            if historize:
-                Historizer.save_building(b, new_snap, now)
+        if last_snap:
+            apts_before = last_snap.apartments
+            updates = compare(apts_before, new_snap)
+            if updates and (updates.removed or updates.added or updates.changed):
+                print("updates detected")
+                dico[b] = updates
+                if historize:
+                    Historizer.save_building(b, new_snap, now)
     if sendAlerts and dico:
         send_alerts(dico)
 
@@ -141,6 +144,7 @@ def send_alerts(updates):
 
 def continuous_task(sleep_time = 60):
     while True:
+        print("checking")
         check_for_changes(True, True)
         time.sleep(sleep_time)
 
