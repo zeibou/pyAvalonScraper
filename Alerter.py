@@ -122,21 +122,21 @@ def get_update_logs(building : Building, filter : Filter):
 
 
 def check_for_changes(historize = False, sendAlerts = False):
-    dico = dict()
+    updates_list = []
     now = datetime.datetime.now()
     for b in Scraper.avalon_buildings:
-        new_snap = Scraper.get_apartments(b)
+        new_snap = list(Scraper.get_apartments(b))
         last_snap = get_last_snapshot(b)
         if last_snap:
             apts_before = last_snap.apartments
             updates = compare(apts_before, new_snap)
             if updates and (updates.removed or updates.added or updates.changed):
                 print("updates detected")
-                dico[b] = updates
+                updates_list.append((b, updates))
                 if historize:
                     Historizer.save_building(b, new_snap, now)
-    if sendAlerts and dico:
-        send_alerts(dico)
+    if sendAlerts and updates_list:
+        send_alerts(updates_list)
 
 
 def send_alerts(updates):
