@@ -9,6 +9,9 @@ import Scraper
 import ApartmentFilter
 import datetime
 import time
+import smtplib
+import json
+import os
 
 
 @dataclass
@@ -140,7 +143,46 @@ def check_for_changes(historize = False, sendAlerts = False):
 
 
 def send_alerts(updates):
-    pass
+    send_email(updates)
+
+def send_email(updates):
+    config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "email_config.json")
+    with open(config_file, 'r') as file:
+        conf = json.load(file)
+
+
+    sender = conf["sender"]
+    password = conf["password"]
+    receivers = conf["receivers"]
+    # Send the message via our own SMTP server.
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.ehlo()
+    s.starttls()
+    s.ehlo()
+    s.login(sender, password)
+
+    body = updates_to_body(updates)
+    s.sendmail(sender, receivers, f'Subject:Avalon Apartments Updates\n{body}')
+    s.close()
+
+
+def updates_to_body(updates):
+    body = ''
+    for building, update in updates:
+        body += f'{building.name} :\n'
+        if update.added:
+            body += '   Added :\n'
+            for u in updates.added:
+                body += f'{u} :\n'
+        if update.removed:
+            body += '   Removed :\n'
+            for u in updates.removed:
+                body += f'{u} :\n'
+        if update.changed:
+            body += '   Changed :\n'
+            for u in updates.changed:
+                body += f'{u} :\n'
+    return body
 
 def continuous_task(sleep_time = 60):
     while True:
@@ -166,6 +208,7 @@ def yield_building_changes(building : Building, filter : Filter):
 
 
 if __name__ == '__main__':
+    #send_email(None)
     continuous_task()
     #for b in Scraper.avalon_buildings:
      #   #print_update_logs(b)
