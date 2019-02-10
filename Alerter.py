@@ -119,14 +119,14 @@ def yield_changes(last_apts, new_apts, filter):
 def get_update_logs(building : Building, filter : Filter):
     apts_now = Scraper.get_apartments(building)
     histos = list(Historizer.load_building(building))
-    histos.append(HistoEntry(datetime.datetime.now(), apts_now))
+    histos.append(HistoEntry(datetime.datetime.utcnow(), apts_now))
     for i in range(1, len(histos)):
         yield UpdateLog(histos[i-1].date, histos[i].date, compare(histos[i-1].apartments, histos[i].apartments))
 
 
 def check_for_changes(historize = False, sendAlerts = False):
     updates_list = []
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     for b in Scraper.avalon_buildings:
         new_snap = list(Scraper.get_apartments(b))
         last_snap = get_last_snapshot(b)
