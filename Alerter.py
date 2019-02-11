@@ -168,7 +168,7 @@ def send_email(updates):
 
 def updates_to_body(updates):
     body = ''
-    for building, update in updates:
+    for (building, update) in updates:
         body += f'{building.name} :\n'
         if update.added:
             body += '   Added :\n'
@@ -186,7 +186,8 @@ def updates_to_body(updates):
 
 def continuous_task(sleep_time = 60):
     while True:
-        print("checking")
+        now = datetime.datetime.utcnow()
+        print(f"checking at {now}")
         check_for_changes(True, True)
         time.sleep(sleep_time)
 
