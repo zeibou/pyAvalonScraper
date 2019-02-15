@@ -12,6 +12,7 @@ import time
 import smtplib
 import json
 import os
+from email.mime.text import MIMEText
 
 
 @dataclass
@@ -134,7 +135,7 @@ def check_for_changes(historize = False, sendAlerts = False):
             apts_before = last_snap.apartments
             updates = compare(apts_before, new_snap)
             if updates and (updates.removed or updates.added or updates.changed):
-                print("updates detected")
+                print("updates detected", flush=True)
                 updates_list.append((b, updates))
                 if historize:
                     Historizer.save_building(b, new_snap, now)
@@ -154,6 +155,14 @@ def send_email(updates):
     sender = conf["sender"]
     password = conf["password"]
     receivers = conf["receivers"]
+    subject = "Avalon Apartments Updates"
+    body = updates_to_body(updates)
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['To'] = ', '.join(receivers)
+    msg['From'] = sender
+
     # Send the message via our own SMTP server.
     s = smtplib.SMTP('smtp.gmail.com', 587)
     s.ehlo()
@@ -161,33 +170,32 @@ def send_email(updates):
     s.ehlo()
     s.login(sender, password)
 
-    body = updates_to_body(updates)
-    s.sendmail(sender, receivers, f'Subject:Avalon Apartments Updates\n{body}')
+    s.sendmail(sender, receivers, msg.as_string())
     s.close()
 
 
 def updates_to_body(updates):
     body = ''
-    for (building, update) in updates:
+    for building, update in updates:
         body += f'{building.name} :\n'
         if update.added:
             body += '   Added :\n'
-            for u in updates.added:
-                body += f'{u} :\n'
+            for u in update.added:
+                body += f'{u}\n'
         if update.removed:
             body += '   Removed :\n'
-            for u in updates.removed:
-                body += f'{u} :\n'
+            for u in update.removed:
+                body += f'{u}\n'
         if update.changed:
             body += '   Changed :\n'
-            for u in updates.changed:
-                body += f'{u} :\n'
+            for u in update.changed:
+                body += f'{u}\n'
     return body
 
 def continuous_task(sleep_time = 60):
     while True:
         now = datetime.datetime.utcnow()
-        print(f"checking at {now}")
+        print(f"checking at {now}", flush=True)
         check_for_changes(True, True)
         time.sleep(sleep_time)
 
