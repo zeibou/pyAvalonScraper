@@ -28,8 +28,9 @@ class Building:
 
 
 avalon_buildings = [
-    Building('NY037', 'dobro'),
-    Building('NY039', 'willoughby')
+    Building('NY037', 'Brooklyn - Ava Dobro'),
+    Building('NY039', 'Brooklyn - Willoughby'),
+    Building('NY011', 'Long Island City - Avalon Riverview')
 ]
 
 
