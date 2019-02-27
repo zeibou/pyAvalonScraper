@@ -45,7 +45,7 @@ filters_by_building = {
 }
 
 def compare(last_apts, new_apts):
-    if not last_apts:
+    if last_apts is None:
         return None
     last_apts_dico = apts_to_dict(last_apts)
     new_apts_dico = apts_to_dict(new_apts)
@@ -133,6 +133,7 @@ def check_for_changes(historize = False, sendAlerts = False):
         last_snap = get_last_snapshot(b)
         if last_snap:
             apts_before = last_snap.apartments
+            #print(f"  comparing apts for building {b},  before: {len(apts_before)} apartments - now: {len(new_snap)} apartments", flush=True)
             updates = compare(apts_before, new_snap)
             if updates and (updates.removed or updates.added or updates.changed):
                 print("updates detected", flush=True)
@@ -177,19 +178,19 @@ def send_email(updates):
 def updates_to_body(updates):
     body = ''
     for building, update in updates:
-        body += f'{building.name} :\n'
+        body += f'{building.name} :\r\n'
         if update.added:
-            body += '   Added :\n'
+            body += '   Added :\r\n'
             for u in update.added:
-                body += f'{u}\n'
+                body += f'    {u}\r\n'
         if update.removed:
-            body += '   Removed :\n'
+            body += '   Removed :\r\n'
             for u in update.removed:
-                body += f'{u}\n'
+                body += f'    {u}\r\n'
         if update.changed:
-            body += '   Changed :\n'
+            body += '   Changed :\r\n'
             for u in update.changed:
-                body += f'{u}\n'
+                body += f'    {u}\r\n'
     return body
 
 def continuous_task(sleep_time = 60):
@@ -218,7 +219,7 @@ def yield_building_changes(building : Building, filter : Filter):
 
 if __name__ == '__main__':
     #send_email(None)
-    continuous_task()
+    continuous_task(90)
     #for b in Scraper.avalon_buildings:
      #   #print_update_logs(b)
      #   filter = filters_by_building[b.id]
